@@ -63,7 +63,7 @@ display(movies_data.head())
 print("\nRatings Dataset:")
 display(ratings_data.head())
 
-"""Mengecek mising value pada data"""
+"""Mengecek mising value pada data dengan fungsi isnull() dan mengecek jumlahnya dengan fungsi sum()"""
 
 print("Movies Dataset:")
 display(movies_data.isnull().sum())
@@ -71,7 +71,7 @@ display(movies_data.isnull().sum())
 print("\nRatings Dataset:")
 display(ratings_data.isnull().sum())
 
-"""Mengecek duplikat data"""
+"""Mengecek duplikat data menggunakan fungsi duplicated() dan menghitung jumlahnya dengan fungsi sum()"""
 
 print("Movies Dataset:")
 display(movies_data.duplicated().sum())
@@ -79,7 +79,7 @@ display(movies_data.duplicated().sum())
 print("\nRatings Dataset:")
 display(ratings_data.duplicated().sum())
 
-"""Mengecek detail data movies dan ratings"""
+"""Mengecek detail data movies dan ratings menggunakan fungsi info()"""
 
 print("Movies Dataset:")
 display(movies_data.info())
@@ -108,7 +108,7 @@ print('Jumlah user: ', len(ratings_data.userId.unique()))
 print('Jumlah data rating: ', len(ratings_data.rating))
 print('Jumlah film: ', len(ratings_data.movieId.unique()))
 
-"""Mengecek distribusi rating pada data"""
+"""Mengecek distribusi rating pada data, dapat dilihat bahwa rating tertinggi yaitu 3 dan 4"""
 
 # Distribusi rating
 plt.figure(figsize=(8, 6))
@@ -119,7 +119,7 @@ plt.ylabel('Jumlah Pengguna')
 plt.xticks(rotation=0)
 plt.show()
 
-"""Mengecek genre yang paling banyak muncul"""
+"""Selanjutnya, kita akan mengecek genre yang paling banyak muncul. disini Drama dan Comedy menjadi genre yang paling banyak muncul di banding yang lain"""
 
 # Membagi genre yang dipisahkan oleh '|'
 all_genres = movies_data['genres'].str.split('|', expand=True).stack().value_counts()
@@ -138,7 +138,7 @@ plt.show()
 
 """## Data Preparation
 
-Menghapus film yang tidak mempunyai genre atau 'no genres listed'
+Menghapus film yang tidak mempunyai genre atau 'no genres listed', karena tidak berpengaruh signifikan pada model
 """
 
 print("Jumlah data sebelum:", len(movies_data))
@@ -164,7 +164,10 @@ print(f"Jumlah film setelah sampling: {len(movies_sampled)}")
 
 """## Modeling
 
-Selanjutnya adalah tahap modeling dimana kita menggunakan teknik Content-based Filtering dan Collaborative filtering, kemudian membandingkan hasilnya menggunakan metrik evaluasi RSME dan MAE
+Selanjutnya adalah tahap modeling dengan teknik Content-based Filtering dan Collaborative Filtering.
+
+- Content-based Filtering menggunakan representasi fitur item dengan metode seperti TF-IDF untuk mengukur kesamaan antara item dan preferensi pengguna, sehingga dapat memberikan rekomendasi item yang relevan berdasarkan konten.
+- Collaborative Filtering menggunakan Matrix Factorization atau model berbasis Neural Network, seperti Multilayer Recommender Networks (Mural), untuk menganalisis pola interaksi antar pengguna dan item, serta memberikan rekomendasi berdasarkan preferensi pengguna yang serupa.
 
 ### Content-Based Filtering
 
@@ -217,6 +220,8 @@ Assign ratings_sampled ke variabel df
 df = ratings_sampled
 df
 
+"""Proses ini dilakukan untuk mengubah userId menjadi daftar unik, kemudian melakukan encoding untuk mengonversi userId menjadi angka, serta menyediakan cara untuk mendekode angka kembali ke userId asli."""
+
 # Mengubah userId menjadi list tanpa nilai yang sama
 user_ids = df['userId'].unique().tolist()
 print('list userId: ', user_ids)
@@ -229,6 +234,8 @@ print('encoded userId : ', user_to_user_encoded)
 user_encoded_to_user = {i: x for i, x in enumerate(user_ids)}
 print('encoded angka ke userId: ', user_encoded_to_user)
 
+"""Selanjutnya mengubah movieId menjadi daftar unik, kemudian melakukan encoding menjadi angka, serta menyediakan cara untuk mendekode angka kembali ke movieId asli."""
+
 # Mengubah movieId menjadi list tanpa nilai yang sama
 movie_ids = df['movieId'].unique().tolist()
 
@@ -238,11 +245,15 @@ movie_to_movie_encoded = {x: i for i, x in enumerate(movie_ids)}
 # Melakukan proses encoding angka ke movieId
 movie_encoded_to_movie = {i: x for i, x in enumerate(movie_ids)}
 
+"""Selanjutnya memetakan userId dan movieId ke nilai numerik yang telah di-encode, dengan mengganti kolom userId dan movieId di DataFrame df menggunakan dictionary encoding yang telah dibuat sebelumnya."""
+
 # Mapping userId ke dataframe user
 df['user'] = df['userId'].map(user_to_user_encoded)
 
 # Mapping movieId ke dataframe movie
 df['movie'] = df['movieId'].map(movie_to_movie_encoded)
+
+"""Kemudian kita akan menghitung jumlah user dan movie unik, mengonversi rating menjadi tipe data float, serta menentukan nilai minimum dan maksimum rating untuk normalisasi, lalu mencetak informasi tersebut."""
 
 # Mendapatkan jumlah user
 num_users = len(user_to_user_encoded)
@@ -265,12 +276,14 @@ print('Number of User: {}, Number of Movie: {}, Min Rating: {}, Max Rating: {}'.
     num_users, num_movie, min_rating, max_rating
 ))
 
-"""Mengacak dataset"""
+"""Selanjutnya kita akan mengacak dataset. ini dilakukan untuk memastikan model tidak terpengaruh oleh urutan data yang mungkin mengandung pola atau bias tertentu, sehingga model dapat belajar dari distribusi data yang lebih representatif dan tidak hanya menghafal urutan data."""
 
 df = df.sample(frac=1, random_state=42)
 df
 
-# Membuat variabel x untuk mencocokkan data user dan resto menjadi satu value
+"""Pada tahap ini, data dibagi menjadi fitur (x) yang berisi pasangan (user, movie) dan target (y) yang berisi rating yang telah dinormalisasi, lalu dibagi menjadi 80% untuk data pelatihan dan 20% untuk data validasi."""
+
+# Membuat variabel x untuk mencocokkan data user dan movie menjadi satu value
 x = df[['user', 'movie']].values
 
 # Membuat variabel y untuk membuat rating dari hasil
@@ -324,7 +337,11 @@ class RecommenderNet(tf.keras.Model):
 
     return tf.nn.sigmoid(x) # activation sigmoid
 
-"""Inisialisasi model"""
+"""Melakukan inisialisasi model dengan parameter sebagai berikut:
+- loss menggunakan binary consentropy
+- optimizer menggunakan Adam dengan learning_rate = 0.001
+- metrik menggunakan RMSE
+"""
 
 model = RecommenderNet(num_users, num_movie, 50)
 
@@ -334,7 +351,7 @@ model.compile(
     metrics=[tf.keras.metrics.RootMeanSquaredError()]
 )
 
-"""Melakukan training pada model"""
+"""Selanjutnya, lakukan pelatihan pada model dengan 100 epoch dan batch size sebanyak 8, serta lakukan validasi selama proses pelatihan."""
 
 history = model.fit(
     x = x_train,
@@ -403,29 +420,33 @@ for row in recommended_movie.itertuples():
 
 """### Evaluasi
 
-Melakukan evaluasi terhadap dua metode, yaitu Content-Based Filtering dan Collaborative Filtering, untuk menentukan model mana yang memberikan hasil rekomendasi terbaik.
+Melakukan evaluasi terhadap dua metode rekomendasi, yaitu Content-Based Filtering dengan menggunakan metrik MAE dan RMSE, serta Collaborative Filtering dengan metrik Precision, untuk menilai kualitas hasil rekomendasi yang dihasilkan oleh masing-masing model.
 """
 
-# Skor similarity dari rekomendasi Content-Based Filtering
-predicted_ratings = df_recommendations['similarity_score'].values
+# Ambil genre Toy Story (1995) sebagai string
+toy_story_genres = movies_sampled[movies_sampled['title'] == 'Toy Story (1995)']['genres'].values[0]
 
-# Ambil rating aktual yang sesuai dengan film rekomendasi
-actual_ratings = []
-for movie_id in df_recommendations['movieId']:
-    actual_rating = ratings_sampled[ratings_sampled['movieId'] == movie_id]['rating'].mean()  # Rata-rata rating jika ada lebih dari satu
-    actual_ratings.append(actual_rating)
+# Hitung relevansi setiap rekomendasi
+relevan_count = 0
 
-# Evaluasi Content-Based Filtering
-mae_cb = mean_absolute_error(actual_ratings, predicted_ratings)
-rmse_cb = np.sqrt(mean_squared_error(actual_ratings, predicted_ratings))
+for index, row in df_recommendations.iterrows():
+    recommended_movie_genres = row['genres']  # Genre film yang direkomendasikan
 
-# Prediksi rating pada data uji untuk Collaborative Filtering
+
+    # Cek apakah ada genre yang cocok antara Toy Story dan rekomendasi
+    if any(genre in toy_story_genres for genre in recommended_movie_genres):
+        relevan_count += 1
+
+print(relevan_count)
+precision_cb = relevan_count / 10  # Total 10 rekomendasi
+
+# Prediksi rating pada validasi untuk Collaborative Filtering
 y_pred = model.predict(x_val).flatten()
 
 # Evaluasi Collaborative Filtering
 mae_cf = mean_absolute_error(y_val, y_pred)
 rmse_cf = np.sqrt(mean_squared_error(y_val, y_pred))
 
-# Hasil evaluasi
-print(f"Content-Based Filtering - MAE: {mae_cb:.4f}, RMSE: {rmse_cb:.4f}")
+# Hasil evaluas
+print(f"Content-Based Filtering - Precision: {precision_cb * 100:.2f}%")
 print(f"Collaborative Filtering - MAE: {mae_cf:.4f}, RMSE: {rmse_cf:.4f}")

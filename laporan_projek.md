@@ -2,12 +2,15 @@
 
 ## Project Overview
 
-Dalam era digital saat ini, sistem rekomendasi menjadi bagian penting dalam berbagai platform, seperti e-commerce, streaming, dan media sosial. Proyek ini bertujuan untuk mengembangkan sistem rekomendasi film menggunakan dua pendekatan utama: *content-based filtering* dan *collaborative filtering*. Dengan menyediakan rekomendasi yang lebih personal, proyek ini diharapkan dapat meningkatkan pengalaman pengguna dalam memilih film yang relevan.
+Dalam era digital saat ini, sistem rekomendasi memainkan peran penting di berbagai platform, seperti e-commerce, layanan streaming, dan media sosial. Meskipun platform tersebut menawarkan banyak pilihan, pengguna sering kali kesulitan menemukan item yang relevan dengan preferensi mereka. Sistem rekomendasi tradisional sering kali memberikan hasil yang kurang akurat, yang dapat mengurangi pengalaman pengguna dan tingkat retensi mereka. Masalah ini timbul karena keterbatasan dalam menangkap preferensi pengguna yang lebih spesifik dan dinamis, serta kurangnya personalisasi dalam rekomendasi yang diberikan.
 
-Sistem rekomendasi film sering kali menggunakan dua metode utama, yaitu **content-based filtering** yang merekomendasikan item berdasarkan konten atau genre yang disukai pengguna, dan **collaborative filtering** yang mengandalkan interaksi pengguna lain untuk memberikan rekomendasi. Setiap metode memiliki kelebihan dan kekurangan, oleh karena itu pendekatan **hybrid** yang menggabungkan kedua metode ini dapat memberikan hasil yang lebih optimal dengan mengurangi kelemahan masing-masing metode.
+Proyek ini bertujuan untuk mengatasi masalah tersebut dengan mengembangkan sistem rekomendasi film menggunakan dua pendekatan utama: content-based filtering dan collaborative filtering. Collaborative filtering (CF) merekomendasikan item berdasarkan kemiripan pengguna dalam hal memilih atau memberi nilai kepada item, sedangkan content-based filtering (CBF) merekomendasikan item berdasarkan kemiripan item dalam hal isi atau konten yang disukai oleh pengguna [1]. Kedua pendekatan ini memiliki kekuatan dan kelemahan masing-masing. Content-based filtering terbatas pada item yang sudah dikenal oleh pengguna, sementara collaborative filtering dapat kurang efektif jika data interaksi pengguna belum cukup banyak. Oleh karena itu, meskipun kedua metode ini berdiri sendiri, masing-masing dapat memberikan rekomendasi yang lebih baik sesuai dengan konteks dan data yang tersedia.
 
-Referensi: 
-Hidayat Arfisko, Hilmi & Wibowo, Agung Toto. (2021). *Sistem Rekomendasi Film Menggunakan Metode Hybrid Collaborative Filtering Dan Content-Based Filtering.* Fakultas Informatika, Universitas Telkom, Bandung, Indonesia.
+Dengan penerapan sistem rekomendasi yang lebih baik, diharapkan dapat meningkatkan pengalaman pengguna dalam menemukan film yang sesuai dengan preferensi mereka, yang pada gilirannya dapat meningkatkan kepuasan dan retensi pengguna di platform.
+
+**Referensi:**
+
+[1] Hidayat Arfisko, Hilmi & Wibowo, Agung Toto. (2021). Sistem Rekomendasi Film Menggunakan Metode Hybrid Collaborative Filtering dan Content-Based Filtering. Fakultas Informatika, Universitas Telkom, Bandung, Indonesia.
 
 ## Business Understanding
 
@@ -21,7 +24,7 @@ Hidayat Arfisko, Hilmi & Wibowo, Agung Toto. (2021). *Sistem Rekomendasi Film Me
 
 ### Solution Statements
 1. *Content-based filtering* menggunakan representasi fitur dari genre film.  
-2. *Collaborative filtering* menggunakan pendekatan neural network untuk mempelajari hubungan antara pengguna dan film. Model ini memanfaatkan embedding layers untuk merepresentasikan pengguna dan film dalam ruang vektor berdimensi rendah, serta menghitung prediksi rating dengan mempertimbangkan interaksi antara pengguna dan film berdasarkan pola yang dipelajari selama pelatihan.
+2. *Collaborative filtering* menggunakan pendekatan neural network untuk mempelajari hubungan antara pengguna dan film.
 
 ## Data Understanding
 
@@ -72,67 +75,144 @@ Langkah-langkah yang dilakukan:
 ```python
 movies_data = movies_data[movies_data['genres'] != '(no genres listed)']
 ```
+Alasan dilakukan tahapan ini:  
+- Menghapus data yang tidak mempunyai genre dikarenakan data tidak berpengaruh signifikan pada model.
+
 2. Melakukan undersampling, yaitu mengambil 10000 sample data secara acak.
 ```python
 ratings_sampled = ratings_data.sample(n=10000, random_state=42)
 ```
-
 Alasan dilakukan tahapan ini:  
-- Menghapus data yang tidak mempunyai genre dikarenakan data tidak berpengaruh signifikan pada model.  
-- Dikarenakan jumlah data yang cukup besar dan resource yang terbatas maka harus dilakuakan undersampling untuk mengurangi dimensi data dan menghemat memory.
+- Dikarenakan jumlah data yang cukup besar dan resource yang terbatas maka harus dilakukan undersampling untuk mengurangi dimensi data dan menghemat memori.
 
-## Modeling
+3. Memisahkan genre pada data dengan fungsi `split('|')` dan memasukkannya ke dalam TF-IDF
+```python
+movies_sampled['genres'] = movies_sampled['genres'].str.split('|')
 
-Pada tahap ini, dua pendekatan utama digunakan untuk merekomendasikan film, yaitu **Content-Based Filtering** dan **Collaborative Filtering**. Setiap pendekatan memiliki metodologi dan implementasi yang berbeda, yang dijelaskan di bawah ini.
+movies_sampled['genres_str'] = movies_sampled['genres'].apply(lambda x: ' '.join(x))
+
+tfidf = TfidfVectorizer()
+tfidf_matrix = tfidf.fit_transform(movies_sampled['genres_str'])
+```
+Alasan dilakukan tahapan ini:  
+- Split digunakan untuk memisahkan genre yang digabungkan dalam satu kolom menjadi elemen-elemen terpisah, dan TF-IDF digunakan untuk mengubah genre tersebut menjadi representasi numerik yang dapat digunakan untuk mengukur kesamaan antar item.
+
+4. Melakukan encoding pada data user dan movie
+```python
+# Melakukan encoding userId
+user_to_user_encoded = {x: i for i, x in enumerate(user_ids)}
+
+# Melakukan proses encoding movieId
+movie_to_movie_encoded = {x: i for i, x in enumerate(movie_ids)}
+```
+Alasan dilakukan tahapan ini:
+
+- Encoding pada data user dan movie bertujuan untuk mengubah ID pengguna dan ID film yang awalnya berupa data kategorikal menjadi numerik, sehingga dapat digunakan sebagai input pada model RecommenderNet.
+
+5. Melakukan pengacakan data
+```python
+df = df.sample(frac=1, random_state=42)
+```
+Alasan dilakukan tahapan ini:
+
+- Menghindari bias urutan data dan memastikan model tidak terpengaruh pola urutan tertentu. selain itu juga untuk meningkatkan generalisasi model dengan distribusi data yang lebih acak.
+
+6. Melakukan split data menjadi set training dan validation 
+```python
+x = df[['user', 'movie']].values
+
+y = df['rating'].apply(lambda x: (x - min_rating) / (max_rating - min_rating)).values
+
+train_indices = int(0.8 * df.shape[0])
+x_train, x_val, y_train, y_val = (
+    x[:train_indices],
+    x[train_indices:],
+    y[:train_indices],
+    y[train_indices:]
+)
+```
+Alasan dilakukan tahapan ini:
+- Tahapan ini dilakukan untuk melatih model dengan 80% data dan menguji kinerjanya pada 20% data sisanya untuk menghindari overfitting dan memastikan kemampuan generalisasi model.
+
+
+## Modeling and Results
+
+Pada tahap ini, dua pendekatan utama digunakan untuk merekomendasikan film, yaitu **Content-Based Filtering** dan **Collaborative Filtering**. Berikut penjelasan mengenai masing-masing metode dan hasil rekomendasi yang dihasilkan:
 
 ### 1. Content-Based Filtering
 
-#### Tahapan dan Cara Kerja Content-Based Filtering
-1. **Persiapan Data:** Menggunakan *TF-IDF Vectorizer* untuk mengubah genre film menjadi representasi vektor. Teknik ini mengonversi data teks (genre film) menjadi bentuk numerik yang dapat diproses oleh algoritma.
-2. **Penghitungan Kesamaan:** Setelah data genre film diubah menjadi vektor, kesamaan antar film dihitung menggunakan *Cosine Similarity*. Ini mengukur sejauh mana dua film memiliki kesamaan dalam hal genre yang disukai pengguna.
-3. **Rekomendasi Film:** Berdasarkan kesamaan tersebut, sistem merekomendasikan film yang memiliki genre serupa dengan film yang sudah disukai pengguna. Pendekatan ini sangat berguna untuk pengguna baru yang tidak memiliki banyak interaksi atau data riwayat penilaian.
+#### Tahapan dan Cara Kerja Content-Based Filtering:
 
-#### Cara Kerja Content-Based Filtering
-Content-based filtering merekomendasikan item berdasarkan informasi konten atau atribut film yang sudah diketahui (seperti genre). Keunggulannya adalah tidak memerlukan data pengguna lain, yang membuatnya ideal untuk situasi dengan sedikit data pengguna atau pengguna baru. Namun, pendekatan ini terbatas pada item yang telah diulas atau dinilai oleh pengguna.
+1. **Persiapan Data:** Menggunakan _TF-IDF Vectorizer_ untuk mengubah genre film menjadi representasi vektor. Teknik ini mengonversi data teks (genre film) menjadi bentuk numerik yang dapat diproses oleh algoritma.
+2. **Penghitungan Kesamaan:** Setelah data genre film diubah menjadi vektor, kesamaan antar film dihitung menggunakan _Cosine Similarity_. Ini mengukur sejauh mana dua film memiliki kesamaan dalam hal genre yang disukai pengguna.
+3. **Rekomendasi Film:** Berdasarkan kesamaan tersebut, sistem merekomendasikan film yang memiliki genre serupa dengan film yang sudah disukai pengguna.
+
+#### Hasil Rekomendasi Content-Based Filtering:
+
+Berikut adalah 10 rekomendasi film teratas untuk film **Toy Story (1995)** berdasarkan pendekatan Content-Based Filtering:
+
+| title                            | genres                                              | similarity_score |
+|----------------------------------|-----------------------------------------------------|------------------|
+| Antz (1998)                      | \[Adventure, Animation, Children, Comedy, Fantasy\] | 1.0              |
+| Toy Story 2 (1999)               | \[Adventure, Animation, Children, Comedy, Fantasy\] | 1.0              |
+| Emperor's New Groove, The (2000) | \[Adventure, Animation, Children, Comedy, Fantasy\] | 1.0              |
+| Monsters, Inc. (2001)            | \[Adventure, Animation, Children, Comedy, Fantasy\] | 1.0              |
+| Shrek the Third (2007)           | \[Adventure, Animation, Children, Comedy, Fantasy\] | 1.0              |
+| Tale of Despereaux, The (2008)   | \[Adventure, Animation, Children, Comedy, Fantasy\] | 1.0              |
+| Asterix and the Vikings (2006)   | \[Adventure, Animation, Children, Comedy, Fantasy\] | 1.0              |
+| Boxtrolls, The (2014)            | \[Adventure, Animation, Children, Comedy, Fantasy\] | 1.0              |
+| The Good Dinosaur (2015)         | \[Adventure, Animation, Children, Comedy, Fantasy\] | 1.0              |
+| Moana (2016)                     | \[Adventure, Animation, Children, Comedy, Fantasy\] | 1.0              |
 
 ### 2. Collaborative Filtering
 
-#### Tahapan dan Cara Kerja Collaborative Filtering
-1. **Neural Network-based Collaborative Filtering:**  
-   Menggunakan pendekatan neural network untuk mempelajari hubungan antara pengguna dan film. Dalam model ini, digunakan *embedding layers* untuk merepresentasikan pengguna dan film sebagai vektor berdimensi rendah. Interaksi antara pengguna dan film dihitung dengan mengalikan vektor pengguna dan film, kemudian ditambahkan dengan bias pengguna dan film untuk mendapatkan prediksi rating.
+#### Tahapan dan Cara Kerja Collaborative Filtering:
 
-2. **Pelatihan Model:**  
-   Model ini dilatih menggunakan data interaksi pengguna dengan film (user-item interactions). Data ini diolah menjadi input untuk neural network, di mana jaringan belajar untuk memprediksi rating film berdasarkan pola perilaku pengguna yang serupa. Proses pelatihan ini menggunakan teknik optimasi seperti backpropagation untuk meminimalkan kesalahan prediksi.
+1. **Data Encoding:** Mengubah `userId` dan `movieId` menjadi representasi angka (encoded) agar dapat digunakan dalam model neural network.
+2. **Inisialisasi model**: Memasukan parameter num_user (9041), num_movie (3658), dan embedding_size (50) ke dalam fungsi RecommenderNet untuk mendefinisikan ukuran embedding pengguna dan film.
+3. **Kompilasi Model**: Model dikompilasi menggunakan optimizer Adam dengan learning_rate=0.001, yang dikenal efisien dalam memperbarui bobot pada neural network. Fungsi loss binary cross-entropy digunakan karena cocok untuk mengukur kesalahan dalam klasifikasi biner, seperti pada rekomendasi berbasis interaksi pengguna.
+4. **Pelatihan Model:** Model dilatih dengan epochs=100 dan batch_size=8 untuk memastikan model mempelajari pola interaksi pengguna secara mendalam tanpa menyebabkan overfitting.
+5. **Rekomendasi Film:** Setelah model dilatih, sistem merekomendasikan film berdasarkan rating yang diprediksi untuk film yang belum dinilai oleh pengguna.
 
-3. **Rekomendasi Film:**  
-   Setelah model dilatih, sistem dapat memberikan rekomendasi film berdasarkan preferensi pengguna lain yang serupa. Film yang belum pernah dinilai oleh pengguna akan diprediksi rating-nya, dan film dengan rating tertinggi akan direkomendasikan.
+#### Hasil Rekomendasi Collaborative Filtering:
 
-#### Cara Kerja Collaborative Filtering
-Collaborative filtering dengan menggunakan neural network memanfaatkan data interaksi antar pengguna untuk memprediksi film yang mungkin disukai oleh pengguna yang belum memberikan rating untuk film tersebut. Teknik ini lebih efektif dalam menangkap pola-pola kompleks dalam data interaksi pengguna dan sering kali menghasilkan rekomendasi yang lebih personal dan relevan. Kelemahan dari metode ini adalah membutuhkan data yang cukup besar agar model dapat belajar secara efektif.
+Berikut adalah 10 rekomendasi film teratas untuk pengguna dengan ID **145319** berdasarkan pendekatan Collaborative Filtering:
 
-### Kelebihan dan Kekurangan
+| title                             | genres                           |
+|-----------------------------------|----------------------------------|
+| Postman, The (Postino, Il) (1994) | \[Comedy, Drama, Romance\]       |
+| Mr. Holland's Opus (1995)         | \[Drama\]                        |
+| 39 Steps, The (1935)              | \[Drama, Mystery, Thriller\]     |
+| Stalker (1979)                    | \[Drama, Mystery, Sci-Fi\]       |
+| Cool Hand Luke (1967)             | \[Drama\]                        |
+| High Noon (1952)                  | \[Drama, Western\]               |
+| Rocky (1976)                      | \[Drama\]                        |
+| Stepmom (1998)                    | \[Drama\]                        |
+| Risky Business (1983)             | \[Comedy\]                       |
+| Last Unicorn, The (1982)          | \[Animation, Children, Fantasy\] |
 
-- **Content-Based Filtering:**
-  - **Kelebihan:** Tidak memerlukan data interaksi pengguna lain, cocok untuk sistem rekomendasi baru atau pengguna baru (cold start problem).
-  - **Kekurangan:** Rekomendasi terbatas pada film yang sudah dinilai atau ada dalam dataset, dan cenderung kurang beragam.
+---
 
-- **Collaborative Filtering:**
-  - **Kelebihan:** Dapat memberikan rekomendasi yang lebih personal dengan memanfaatkan pola perilaku banyak pengguna.
-  - **Kekurangan:** Memerlukan dataset besar dengan banyak interaksi pengguna untuk memberikan hasil yang baik.
+### Catatan:
+
+- Pada **Content-Based Filtering**, rekomendasi didasarkan pada genre film yang serupa dengan film yang sudah disukai pengguna, tanpa mempertimbangkan interaksi dengan pengguna lain.
+- Pada **Collaborative Filtering**, rekomendasi didasarkan pada perilaku pengguna lain yang memiliki pola rating serupa, sehingga dapat memberikan rekomendasi yang lebih personal.
+
+Dengan kedua pendekatan ini, sistem rekomendasi dapat memberikan pilihan film yang relevan berdasarkan kesamaan konten dan interaksi pengguna.
+
 
 ## Evaluation
 
-Metrik evaluasi yang digunakan dalam proyek ini adalah RMSE (Root Mean Square Error) dan MAE (Mean Absolute Error).
+Metrik evaluasi yang digunakan dalam proyek ini adalah RMSE (Root Mean Square Error) dan MAE (Mean Absolute Error) untuk metode Collaborative Filtering dan Precision untuk metode berbasis Content-based Filtering.
 
 ### Content-Based Filtering:
-- **RMSE:** 2.5409  
-- **MAE:** 2.3357  
+- **Precision:** 100.00% 
 
 ### Collaborative Filtering:
 - **RMSE:** 0.2613  
 - **MAE:** 0.2111  
 
-Hasil di atas menunjukkan bahwa model **Collaborative Filtering** memiliki performa yang jauh lebih baik dibandingkan **Content-Based Filtering**. Dengan RMSE yang lebih rendah, MAE yang lebih kecil, dan akurasi prediksi yang lebih tinggi, **Collaborative Filtering** dapat menangkap preferensi pengguna dengan lebih akurat.
+Hasil evaluasi ini menunjukkan performa dari masing-masing metode menggunakan metrik yang relevan. **Precision** untuk **Content-Based Filtering** menunjukkan tingkat akurasi rekomendasi yang sangat tinggi, sedangkan **Collaborative Filtering** menghasilkan nilai **RMSE** dan **MAE** yang memberikan gambaran mengenai kesalahan rata-rata dalam prediksi.
 
 ---
 
@@ -182,8 +262,26 @@ MAE menghitung rata-rata selisih absolut antara nilai aktual dan prediksi. Nilai
 
 ---
 
+#### 3. Recommender System Precision
+
+**Formula:**
+
+$$
+\text{Precision} = \frac{\text{Number of relevant recommendations}}{\text{Number of recommendations made}}
+$$
+
+**Penjelasan:**
+- **Number of relevant recommendations**: Jumlah rekomendasi yang relevan.
+- **Number of recommendations made**: Jumlah total rekomendasi yang diberikan oleh sistem.
+
+**Cara Kerja:**  
+Precision mengukur sejauh mana rekomendasi yang diberikan oleh sistem relevan dengan preferensi pengguna. Precision yang lebih tinggi menunjukkan bahwa semakin banyak rekomendasi yang relevan dari total rekomendasi yang diberikan.
+
+---
+
 ### Kesimpulan Metrik:
 - **RMSE** memberikan gambaran seberapa besar kesalahan rata-rata dalam satuan yang sama dengan data asli. Semakin kecil RMSE, semakin baik model.  
 - **MAE** menunjukkan nilai deviasi rata-rata secara absolut. Metrik ini mudah dipahami dan memberikan indikasi akurasi prediksi.
+- **Precision** mengukur sejauh mana rekomendasi yang diberikan oleh sistem relevan dengan preferensi pengguna. Semakin tinggi Precision, semakin banyak rekomendasi yang sesuai dengan kebutuhan pengguna di antara semua rekomendasi yang diberikan.
 
-Kedua metrik ini saling melengkapi untuk memberikan penilaian lengkap terhadap kualitas prediksi model.
+Ketiga metrik ini saling melengkapi untuk memberikan penilaian lengkap terhadap kualitas prediksi model dan akurasi rekomendasi. RMSE dan MAE fokus pada kesalahan prediksi numerik, sementara Precision berfokus pada relevansi rekomendasi dalam konteks sistem rekomendasi.
